@@ -8,7 +8,6 @@ process.on('SIGINT', function() {
 
 const ignoredDevices = process.env.IGNORED_DEVICES ? process.env.IGNORED_DEVICES.split(',') : []
 const forceDevices = process.env.FORCE_DEVICES ? process.env.FORCE_DEVICES.split(',') : []
-const knownDevices = process.env.KNOWN_DEVICES ? process.env.KNOWN_DEVICES.split(',') : []
 
 const settingsPar = {
     wmsChannel   : process.env.WMS_CHANNEL     || 17,
@@ -135,6 +134,7 @@ function registerDevice(element) {
 }
 
 function registerDevices() {
+  console.log('Registering ...')
   registerDevice({snr: 1190504, name:"East1"  , type:20 })
   registerDevice({snr: 1190503, name:"East2"  , type:20 })
   registerDevice({snr: 1260229, name:"South1" , type:20 })
