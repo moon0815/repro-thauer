@@ -117,7 +117,6 @@ function registerDevices() {
 }
 
 function callback(err, msg) {
-  console.log("Callback(" + err + ", msg: " + msg + ")");
   if(err) {
     console.log('ERROR: ' + err);
   }
@@ -235,12 +234,10 @@ client.on('error', function (error) {
 })
 
 client.on('message', function (topic, message) {
-  console.log("client.on <<<" + topic + ':' + message.toString())
   var scope = topic.split('/')[0]
   if (scope == 'warema') {
     var device = parseInt(topic.split('/')[1])
     var command = topic.split('/')[2]
-    console.log("command: " + command)
     switch (command) {
       case 'rain':
       case 'wind':
@@ -279,5 +276,4 @@ client.on('message', function (topic, message) {
       registerDevices()
     }
   }
-  console.log("client.on ENDs")
 })
