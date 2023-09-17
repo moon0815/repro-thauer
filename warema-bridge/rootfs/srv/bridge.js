@@ -8,6 +8,8 @@ process.on('SIGINT', function() {
 
 const ignoredDevices = process.env.IGNORED_DEVICES ? process.env.IGNORED_DEVICES.split(',') : []
 const forceDevices = process.env.FORCE_DEVICES ? process.env.FORCE_DEVICES.split(',') : []
+const knownDevices = process.env.KNOWN_DEVICES ? 
+        process.env.KNOWN_DEVICES.split("\n").map( x => JSON.parse(x)) : []
 
 const settingsPar = {
     wmsChannel   : process.env.WMS_CHANNEL     || 17,
@@ -55,9 +57,6 @@ function registerDevice(element) {
         }
       }
       break
-    // WMS WebControl Pro - while part of the network, we have no business to do with it.
-    case 9:
-      return
     case 20:
       model = 'Plug receiver'
       payload = {
@@ -75,27 +74,6 @@ function registerDevice(element) {
         tilt_command_topic: 'warema/' + element.snr + '/set_tilt',
         tilt_closed_value: 100,
         tilt_opened_value: -100,
-        tilt_min: -100,
-        tilt_max: 100,
-      }
-      break
-    case 21:
-      model = 'Actuator UP'
-      payload = {
-        ...base_payload,
-        device: {
-          ...base_device,
-          model: model
-        },
-        position_open: 0,
-        position_closed: 100,
-        command_topic: 'warema/' + element.snr + '/set',
-        position_topic: 'warema/' + element.snr + '/position',
-        tilt_status_topic: 'warema/' + element.snr + '/tilt',
-        set_position_topic: 'warema/' + element.snr + '/set_position',
-        tilt_command_topic: 'warema/' + element.snr + '/set_tilt',
-        tilt_closed_value: -100,
-        tilt_opened_value: 100,
         tilt_min: -100,
         tilt_max: 100,
       }
@@ -135,32 +113,11 @@ function registerDevice(element) {
 
 function registerDevices() {
   console.log('Registering ...')
-  registerDevice({snr: 1190504, name:"East1"  , type:20 })
-  registerDevice({snr: 1190503, name:"East2"  , type:20 })
-  registerDevice({snr: 1260229, name:"South1" , type:20 })
-  registerDevice({snr: 1259963, name:"South2" , type:20 })
-  registerDevice({snr: 1268208, name:"South3" , type:20 })
-  registerDevice({snr:  883045, name:"South4" , type:20 })
-  registerDevice({snr: 1190454, name:"Balcon1", type:20 })
-  registerDevice({snr: 1190496, name:"Balcon2", type:20 })
-  registerDevice({snr: 1259545, name:"Kitchen", type:20 })
-  registerDevice({snr: 1190506, name:"Bedroom", type:20 })
-  registerDevice({snr: 1187205, name:"Lilla"  , type:20 })
-  registerDevice({snr: 1260043, name:"Ben"    , type:20 })
-  registerDevice({snr: 1247705, name:"Awning" , type:25 })
-  registerDevice({snr: 1247909, name:"AwningW", type:25 })
-  return;
-  if (forceDevices && forceDevices.length) {
-    forceDevices.forEach(element => {
-      registerDevice({snr: element, type: 25})
-    })
-  } else {
-    console.log('Scanning...')
-    stickUsb.scanDevices({autoAssignBlinds: false});
-  }
+  knownDevices.forEach(x => registerDevice(x))
 }
 
 function callback(err, msg) {
+  console.log("Callback(" + err + ", msg: " + msg + ")");
   if(err) {
     console.log('ERROR: ' + err);
   }
@@ -172,61 +129,57 @@ function callback(err, msg) {
         stickUsb.setPosUpdInterval(30000);
         break
       case 'wms-vb-rcv-weather-broadcast':
+	var topic_base = 'homeassistant/sensor/warema/' + msg.payload.weather.snr;
         if (registered_shades.includes(msg.payload.weather.snr)) {
-          client.publish('warema/' + msg.payload.weather.snr + '/illuminance/state', msg.payload.weather.lumen.toString())
-          client.publish('warema/' + msg.payload.weather.snr + '/temperature/state', msg.payload.weather.temp.toString())
-	  client.publish('warema/' + msg.payload.weather.snr + '/wind/state', msg.payload.weather.wind.toString())
-	  client.publish('warema/' + msg.payload.weather.snr + '/rain/state', msg.payload.weather.rain.toString())
+	  client.publish(topic_base + '/state', JSON.stringify( msg.payload.weather ));
         } else {
-          var availability_topic = 'warema/' + msg.payload.weather.snr + '/availability'
           var payload = {
-            name: msg.payload.weather.snr,
             availability: [
               {topic: 'warema/bridge/state'},
-              {topic: availability_topic}
+              {topic: topic_base + '/availability'}
             ],
+	    state_topic: topic_base + '/state',
             device: {
               identifiers: msg.payload.weather.snr,
               manufacturer: 'Warema',
               model: 'Weather Station',
-              name: msg.payload.weather.snr
             },
             force_update: true
           }
 
           var illuminance_payload = {
             ...payload,
-            state_topic: 'warema/' + msg.payload.weather.snr + '/illuminance/state',
             device_class: 'illuminance',
             unique_id: msg.payload.weather.snr + '_illuminance',
-            unit_of_measurement: 'lm',
+            unit_of_measurement: 'lx',
+	    value_template: '{{value_json.lumen}}',
           }
-          client.publish('homeassistant/sensor/' + msg.payload.weather.snr + '/illuminance/config', JSON.stringify(illuminance_payload))
+          client.publish( topic_base + '_illuminance/config', JSON.stringify(illuminance_payload))
 
           var temperature_payload = {
             ...payload,
-            state_topic: 'warema/' + msg.payload.weather.snr + '/temperature/state',
             device_class: 'temperature',
             unique_id: msg.payload.weather.snr + '_temperature',
-            unit_of_measurement: 'C',
+            unit_of_measurement: '°C',
+	    value_template: '{{value_json.temp}}',
           }
-          client.publish('homeassistant/sensor/' + msg.payload.weather.snr + '/temperature/config', JSON.stringify(temperature_payload))
+          client.publish( topic_base + '_temperature/config', JSON.stringify(temperature_payload))
 
 	  var wind_payload = {
 	    ...payload,
-	    state_topic: 'warema/' + msg.payload.weather.snr + '/wind/state',
 	    unique_id: msg.payload.weather.snr + '_wind',
+	    value_template: '{{value_json.wind}}',
 	  }
-	  client.publish('homeassistant/sensor/' + msg.payload.weather.snr + '/wind/config', JSON.stringify(wind_payload))
+	  client.publish( topic_base + '_wind/config', JSON.stringify(wind_payload))
 
 	  var rain_payload = {
 	    ...payload,
-	    state_topic: 'warema/' + msg.payload.weather.snr + '/rain/state',
 	    unique_id: msg.payload.weather.snr + '_rain',
+	    value_template: '{{value_json.rain}}',
 	  }
-	  client.publish('homeassistant/sensor/' + msg.payload.weather.snr + '/rain/config', JSON.stringify(rain_payload))
+	  client.publish( topic_base + '_rain/config', JSON.stringify(rain_payload))
 	  
-          client.publish(availability_topic, 'online', {retain: true})
+          client.publish( topic_base + '/availability', 'online', {retain: true})
           registered_shades += msg.payload.weather.snr
         }
         break
@@ -282,11 +235,12 @@ client.on('error', function (error) {
 })
 
 client.on('message', function (topic, message) {
-//  console.log(topic + ':' + message.toString())
+  console.log("client.on <<<" + topic + ':' + message.toString())
   var scope = topic.split('/')[0]
   if (scope == 'warema') {
     var device = parseInt(topic.split('/')[1])
     var command = topic.split('/')[2]
+    console.log("command: " + command)
     switch (command) {
       case 'rain':
       case 'wind':
@@ -294,8 +248,8 @@ client.on('message', function (topic, message) {
       case 'illuminance':
 	break
       default:
-	console.log(topic + ':' + message.toString());
-	console.log('device: ' + device + ' === command: ' + command);
+//	console.log(topic + ':' + message.toString());
+//	console.log('device: ' + device + ' === command: ' + command);
     }
     switch (command) {
       case 'set':
@@ -325,4 +279,5 @@ client.on('message', function (topic, message) {
       registerDevices()
     }
   }
+  console.log("client.on ENDs")
 })
