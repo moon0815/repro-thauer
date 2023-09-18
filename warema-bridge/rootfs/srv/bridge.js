@@ -21,6 +21,55 @@ const settingsPar = {
 var registered_shades = []
 var shade_position = []
 
+function registerWeatherStation(snr) {
+  var topic_base = 'homeassistant/sensor/warema/' + snr;
+
+  var payload = {
+    availability: [
+      {topic: 'warema/bridge/state'},
+      {topic: topic_base + '/availability'}
+    ],
+    state_topic: topic_base + '/state',
+    device: {
+      identifiers: snr,
+      manufacturer: 'Warema',
+      model: 'Weather Station',
+    },
+    force_update: true
+  }
+
+  client.publish( topic_base + '_illuminance/config', JSON.stringify({
+      ...payload,
+      unique_id: snr + '_illuminance',
+      value_template: '{{value_json.lumen}}',
+      device_class: 'illuminance',
+      unit_of_measurement: 'lx',
+    }));
+
+  client.publish( topic_base + '_temperature/config', JSON.stringify({
+    ...payload,
+    unique_id: snr + '_temperature',
+    value_template: '{{value_json.temp}}',
+    device_class: 'temperature',
+    unit_of_measurement: '°C',
+  }))
+
+  client.publish( topic_base + '_wind/config', JSON.stringify({
+    ...payload,
+    unique_id: snr + '_wind',
+    value_template: '{{value_json.wind}}',
+  }))
+
+  client.publish( topic_base + '_rain/config', JSON.stringify({
+    ...payload,
+    unique_id: snr + '_rain',
+    value_template: '{{value_json.rain}}',
+  }))
+
+  client.publish( topic_base + '/availability', 'online', {retain: true})
+  registered_shades += snr
+}
+
 function registerDevice(element) {
   console.log('Registering ' + element.snr)
   if(element.name == undefined) {
@@ -47,16 +96,6 @@ function registerDevice(element) {
   var model
   var payload
   switch (parseInt(element.type)) {
-    case 6:
-      model = 'Weather station'
-      payload = {
-        ...base_payload,
-        device: {
-          ...base_device,
-          model: model
-        }
-      }
-      break
     case 20:
       model = 'Plug receiver'
       payload = {
@@ -112,7 +151,6 @@ function registerDevice(element) {
 }
 
 function registerDevices() {
-  console.log('Registering ...')
   knownDevices.forEach(x => registerDevice(x))
 }
 
@@ -128,58 +166,11 @@ function callback(err, msg) {
         stickUsb.setPosUpdInterval(30000);
         break
       case 'wms-vb-rcv-weather-broadcast':
-	var topic_base = 'homeassistant/sensor/warema/' + msg.payload.weather.snr;
         if (registered_shades.includes(msg.payload.weather.snr)) {
-	  client.publish(topic_base + '/state', JSON.stringify( msg.payload.weather ));
+          client.publish('homeassistant/sensor/warema/' + msg.payload.weather.snr + '/state', 
+                         JSON.stringify( msg.payload.weather ));
         } else {
-          var payload = {
-            availability: [
-              {topic: 'warema/bridge/state'},
-              {topic: topic_base + '/availability'}
-            ],
-	    state_topic: topic_base + '/state',
-            device: {
-              identifiers: msg.payload.weather.snr,
-              manufacturer: 'Warema',
-              model: 'Weather Station',
-            },
-            force_update: true
-          }
-
-          var illuminance_payload = {
-            ...payload,
-            device_class: 'illuminance',
-            unique_id: msg.payload.weather.snr + '_illuminance',
-            unit_of_measurement: 'lx',
-	    value_template: '{{value_json.lumen}}',
-          }
-          client.publish( topic_base + '_illuminance/config', JSON.stringify(illuminance_payload))
-
-          var temperature_payload = {
-            ...payload,
-            device_class: 'temperature',
-            unique_id: msg.payload.weather.snr + '_temperature',
-            unit_of_measurement: '°C',
-	    value_template: '{{value_json.temp}}',
-          }
-          client.publish( topic_base + '_temperature/config', JSON.stringify(temperature_payload))
-
-	  var wind_payload = {
-	    ...payload,
-	    unique_id: msg.payload.weather.snr + '_wind',
-	    value_template: '{{value_json.wind}}',
-	  }
-	  client.publish( topic_base + '_wind/config', JSON.stringify(wind_payload))
-
-	  var rain_payload = {
-	    ...payload,
-	    unique_id: msg.payload.weather.snr + '_rain',
-	    value_template: '{{value_json.rain}}',
-	  }
-	  client.publish( topic_base + '_rain/config', JSON.stringify(rain_payload))
-	  
-          client.publish( topic_base + '/availability', 'online', {retain: true})
-          registered_shades += msg.payload.weather.snr
+          registerWeatherStation(msg.payload.weather.snr);
         }
         break
       case 'wms-vb-blind-position-update':
