@@ -1,5 +1,15 @@
+const { createLogger, format, transports } = require('winston');
+const logger = createLogger({
+  level: process.env.LOGLEVEL || "warn",
+  format: format.simple(),
+  transports: [ new transports.Console()  ],
+});
+
+logger.info("Start logging");
+
+const mqtt = require('mqtt')
 const warema = require('warema-wms-api');
-var mqtt = require('mqtt')
+
 
 process.on('SIGINT', function() {
     process.exit(0);
@@ -154,9 +164,15 @@ function registerDevices() {
   knownDevices.forEach(x => registerDevice(x))
 }
 
+/**
+ * callback function to handle events on the stick (Warema Antenna)
+ * @param {*} err Received error
+ * @param {*} msg  Received message
+ */
 function callback(err, msg) {
+  console.debug("callback ( " + err + "," + msg + "," );
   if(err) {
-    console.log('ERROR: ' + err);
+    logger.error('ERROR: ' + err);
   }
   if(msg) {
     switch (msg.topic) {
@@ -225,6 +241,7 @@ client.on('error', function (error) {
 })
 
 client.on('message', function (topic, message) {
+  logger.silly("MQTT RCV " + topic + " << " + message);
   var scope = topic.split('/')[0]
   if (scope == 'warema') {
     var device = parseInt(topic.split('/')[1])

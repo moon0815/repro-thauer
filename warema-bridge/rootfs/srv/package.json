@@ -1,6 +1,9 @@
 {
     "dependencies": {
-        "mqtt": "^4.3.7",
-        "warema-wms-api": "1.0.4"
+        "mqtt": "^4.3.7"
+    },
+    "devDependencies": {
+        "jest": "^29.6.4",
+        "winston": "^3.10.0"
     }
 }
