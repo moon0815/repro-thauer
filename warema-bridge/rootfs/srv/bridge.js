@@ -51,7 +51,7 @@ function registerWeatherStation(snr) {
   client.publish( topic_base + '_illuminance/config', JSON.stringify({
       ...payload,
       unique_id: snr + '_illuminance',
-      value_template: '{{value_json.lumen}}',
+      value_template: '{{value_json.illuminance}}',
       device_class: 'illuminance',
       unit_of_measurement: 'lx',
     }));
@@ -59,7 +59,7 @@ function registerWeatherStation(snr) {
   client.publish( topic_base + '_temperature/config', JSON.stringify({
     ...payload,
     unique_id: snr + '_temperature',
-    value_template: '{{value_json.temp}}',
+    value_template: '{{value_json.temperature}}',
     device_class: 'temperature',
     unit_of_measurement: '°C',
   }))
@@ -165,16 +165,17 @@ function registerDevices() {
 }
 
 /**
- * callback function to handle events on the stick (Warema Antenna)
+ * callback function that the stick (Warema Antenna) will use to 
+ * handle objectified events 
  * @param {*} err Received error
  * @param {*} msg  Received message
  */
 function callback(err, msg) {
-  console.debug("callback ( " + err + "," + msg + "," );
   if(err) {
-    logger.error('ERROR: ' + err);
+    logger.error('callback( ERROR: ' + err + ')');
   }
   if(msg) {
+    logger.silly("callback ( topic: " + msg.topic + " )" );
     switch (msg.topic) {
       case 'wms-vb-init-completion':
         console.log('Warema init completed')
@@ -223,10 +224,18 @@ var client = mqtt.connect(
 
 var stickUsb
 
+process.on('SIGINT', function() {
+  stickUsb.close();
+});
+
+/**
+ * MQTT connect and subscribe
+ * Opens USB port
+ */
 client.on('connect', function (connack) {
-  console.log('Connected to MQTT')
-  client.subscribe('warema/#')
-  client.subscribe('homeassistant/status')
+  var subscriptions=['warema/#', 'homeassistant/status'];
+  logger.info('Connected to MQTT, subscribing to ' + subscriptions.join(", "))
+  subscriptions.forEach(s => client.subscribe(s));
   stickUsb = new warema(settingsPar.wmsSerialPort,
     settingsPar.wmsChannel,
     settingsPar.wmsPanid,
@@ -237,9 +246,12 @@ client.on('connect', function (connack) {
 })
 
 client.on('error', function (error) {
-  console.log('MQTT Error: ' + error.toString())
+  logger.error('MQTT Error: ' + error.toString())
 })
 
+/**
+ * callback function to handle events on MQTT subscribed topics
+ */
 client.on('message', function (topic, message) {
   logger.silly("MQTT RCV " + topic + " << " + message);
   var scope = topic.split('/')[0]
