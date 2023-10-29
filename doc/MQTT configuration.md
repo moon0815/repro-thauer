@@ -56,12 +56,12 @@ mqtt:
 * homeassistant
     * sensor
         * warema
-            * 968513
+            * AAAAAA
                 * state
 
     * cover
         * warema
-            * XXXXXX
+            * AAAAAA
                 * state
                 * command
 
