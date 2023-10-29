@@ -10,11 +10,9 @@ logger.info("Start logging");
 const mqtt = require('mqtt')
 const warema = require('warema-wms-api');
 
-
 process.on('SIGINT', function() {
     process.exit(0);
 });
-
 
 const ignoredDevices = process.env.IGNORED_DEVICES ? process.env.IGNORED_DEVICES.split(',') : []
 const forceDevices = process.env.FORCE_DEVICES ? process.env.FORCE_DEVICES.split(',') : []
@@ -31,7 +29,12 @@ const settingsPar = {
 var registered_shades = []
 var shade_position = []
 
+/**
+ * Publishes a discovery payload to MQTT to register a weather station
+ * @param {number} snr 
+ */
 function registerWeatherStation(snr) {
+  logger.debug("Registering Weather Station " + snr + " (" + (typeof snr) +")");
   var topic_base = 'homeassistant/sensor/warema/' + snr;
 
   var payload = {
