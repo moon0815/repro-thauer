@@ -1,6 +1,7 @@
 {
   "name": "Tamás' Warema Bridge",
-  "version": "0.6.15",
+  "version": "0.5",
+  "version": "0.6.13",
   "slug": "warema-bridge-tom",
   "description": "TH: Control my Warema WMS system",
   "arch": ["aarch64", "amd64", "armv7", "i386"],
@@ -9,7 +10,7 @@
   "url": "https://github.com/thauer/addon-warema-bridge",
   "boot": "auto",
   "hassio_api": true,
-   "options": {
+  "options": {
     "wms_serial_port": null
   },
   "schema": {
@@ -18,12 +19,16 @@
     "wms_channel": "int?",
     "wms_serial_port": "device(subsystem=tty)",
     "ignored_devices": "str?",
+    "force_devices": "str?"
     "force_devices": "str?",
-    "known_devices": {
+    "known_devices": [{
       "snr" : "int",
       "type": "int",
       "name": "str?"
-    }
+    }]
+  },
+  "options": {
+    "wms_serial_port": null
   },
   "services": [
     "mqtt:need"
