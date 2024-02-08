@@ -2,6 +2,7 @@
     "dependencies": {
         "@serialport/parser-delimiter": "11.0.1",
         "mqtt": "^4.3.7",
+        "warema-wms-api": "1.0.4",
         "serialport": "^11.0.1"
     },
     "devDependencies": {
