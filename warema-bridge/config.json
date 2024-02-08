@@ -23,7 +23,7 @@
       "snr" : "int",
       "type": "int",
       "name": "str?"
-    }]
+    }],
   },
   "services": [
     "mqtt:need"
